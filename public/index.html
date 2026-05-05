@@ -3,125 +3,184 @@
 <head>
     <meta charset="UTF-8">
     <title>Consultorio Dental - IngSoft</title>
+    <!-- Librería profesional para el Calendario -->
+    <script src='https://cdn.jsdelivr.net/npm/fullcalendar@6.1.11/index.global.min.js'></script>
     <style>
-        body { font-family: Arial, sans-serif; background-color: #f4f7f6; padding: 20px; }
-        .container { max-width: 800px; margin: auto; background: white; padding: 20px; border-radius: 8px; box-shadow: 0 0 10px rgba(0,0,0,0.1); }
-        h1 { color: #2c3e50; text-align: center; }
-        form { display: flex; gap: 10px; margin-bottom: 20px; flex-wrap: wrap; }
-        input { flex: 1; padding: 10px; border: 1px solid #ccc; border-radius: 4px; min-width: 150px; }
-        button { padding: 10px 15px; border: none; background: #3498db; color: white; border-radius: 4px; cursor: pointer; }
+        body { font-family: Arial, sans-serif; background-color: #f4f7f6; padding: 20px; margin: 0; }
+        .layout-principal { display: flex; gap: 20px; max-width: 1400px; margin: auto; }
+        .columna-izquierda { flex: 1; background: white; padding: 20px; border-radius: 8px; box-shadow: 0 0 10px rgba(0,0,0,0.1); }
+        .columna-derecha { flex: 1.5; background: white; padding: 20px; border-radius: 8px; box-shadow: 0 0 10px rgba(0,0,0,0.1); }
+
+        h1, h2, h3 { color: #2c3e50; text-align: center; }
+        form { display: flex; gap: 10px; margin-bottom: 20px; flex-wrap: wrap; background: #ecf0f1; padding: 15px; border-radius: 6px; }
+        input, select { flex: 1; padding: 10px; border: 1px solid #ccc; border-radius: 4px; min-width: 120px; }
+        button { padding: 10px 15px; border: none; background: #3498db; color: white; border-radius: 4px; cursor: pointer; font-weight: bold;}
         button:hover { background: #2980b9; }
-        button.btn-eliminar { background: #e74c3c; }
-        table { width: 100%; border-collapse: collapse; margin-top: 20px; }
-        th, td { border: 1px solid #ddd; padding: 10px; text-align: left; }
+        button.btn-eliminar { background: #e74c3c; margin-top: 5px; }
+
+        table { width: 100%; border-collapse: collapse; margin-top: 20px; font-size: 14px; }
+        th, td { border: 1px solid #ddd; padding: 8px; text-align: left; }
         th { background-color: #3498db; color: white; }
+
+        #calendario-nativo { margin-top: 20px; height: 500px; }
     </style>
 </head>
 <body>
-<div class="container">
-    <h1>🦷 Control de Pacientes</h1>
+<h1 style="text-align: center; color: #2c3e50; margin-bottom: 30px;">🦷 Sistema de Gestión Dental</h1>
 
-    <!-- Formulario para Agregar / Modificar -->
-    <form id="pacienteForm">
-        <input type="hidden" id="id_paciente">
-        <input type="text" id="nombre" placeholder="Nombre Completo" required>
-        <input type="text" id="telefono" placeholder="Teléfono" required>
-        <input type="email" id="email" placeholder="Correo Electrónico">
-        <button type="submit" id="btnGuardar">Guardar Paciente</button>
-    </form>
+<div class="layout-principal">
 
-    <!-- Tabla donde se muestran los datos de la Base de Datos -->
-    <table>
-        <thead>
-        <tr>
-            <th>ID</th>
-            <th>Nombre</th>
-            <th>Teléfono</th>
-            <th>Email</th>
-            <th>Acciones</th>
-        </tr>
-        </thead>
-        <tbody id="tablaPacientes">
-        <!-- Aquí se inyectarán los datos desde JavaScript -->
-        </tbody>
-    </table>
+    <!-- MITAD IZQUIERDA: Pacientes -->
+    <div class="columna-izquierda">
+        <h2>1. Control de Pacientes</h2>
+        <form id="pacienteForm">
+            <input type="hidden" id="id_paciente">
+            <input type="text" id="nombre" placeholder="Nombre" required>
+            <input type="text" id="telefono" placeholder="Teléfono" required>
+            <input type="email" id="email" placeholder="Correo">
+            <button type="submit">Guardar Paciente</button>
+        </form>
+
+        <table>
+            <thead>
+            <tr><th>ID</th><th>Nombre</th><th>Teléfono</th><th>Acciones</th></tr>
+            </thead>
+            <tbody id="tablaPacientes"></tbody>
+        </table>
+    </div>
+
+    <!-- MITAD DERECHA: Citas y Calendario -->
+    <div class="columna-derecha">
+        <h2>2. Agenda de Citas</h2>
+
+        <!-- FORMULARIO PARA AGENDAR CITAS -->
+        <form id="citaForm">
+            <select id="citaPaciente" required>
+                <option value="">Selecciona un paciente...</option>
+            </select>
+            <input type="date" id="citaFecha" required>
+            <input type="time" id="citaHora" required>
+            <input type="text" id="citaMotivo" placeholder="Motivo (Ej: Limpieza)" required>
+            <button type="submit" style="background-color: #27ae60;">Agendar Cita</button>
+        </form>
+
+        <!-- CONTENEDOR DEL CALENDARIO -->
+        <div id="calendario-nativo"></div>
+    </div>
+
 </div>
 
 <script>
-    // Funciones para conectar la Interfaz con el Servidor y la Base de Datos
-    const form = document.getElementById('pacienteForm');
+    let calendarioGlobal;
 
-    // 1. LEER (Mostrar datos)
+    // ==========================================
+    // CONFIGURAR EL CALENDARIO (Se ejecuta al abrir la página)
+    // ==========================================
+    document.addEventListener('DOMContentLoaded', function() {
+        const calendarEl = document.getElementById('calendario-nativo');
+        calendarioGlobal = new FullCalendar.Calendar(calendarEl, {
+            initialView: 'dayGridMonth',
+            locale: 'es', // En español
+            headerToolbar: { left: 'prev,next today', center: 'title', right: 'dayGridMonth,timeGridWeek,timeGridDay' },
+            // Esta función saca las citas de tu Base de Datos y las dibuja
+            events: async function(info, successCallback, failureCallback) {
+                const respuesta = await fetch('/api/citas');
+                const citas = await respuesta.json();
+
+                // Transformamos los datos para que el calendario los entienda
+                const eventos = citas.map(cita => ({
+                    id: cita.id_cita,
+                    title: `${cita.nombre_completo} - ${cita.motivo}`,
+                    start: `${cita.fecha}T${cita.hora}`, // Une fecha y hora
+                    color: '#3498db'
+                }));
+                successCallback(eventos);
+            }
+        });
+        calendarioGlobal.render();
+
+        // Cargar datos iniciales
+        cargarPacientes();
+    });
+
+    // ==========================================
+    // LÓGICA DE PACIENTES
+    // ==========================================
     async function cargarPacientes() {
         const respuesta = await fetch('/api/pacientes');
         const pacientes = await respuesta.json();
+
+        // 1. Llenar la tabla
         const tabla = document.getElementById('tablaPacientes');
         tabla.innerHTML = '';
 
+        // 2. Llenar la lista desplegable de citas
+        const selectPaciente = document.getElementById('citaPaciente');
+        selectPaciente.innerHTML = '<option value="">Selecciona un paciente...</option>';
+
         pacientes.forEach(p => {
+            // Agregar a la tabla
             tabla.innerHTML += `
                     <tr>
                         <td>${p.id_paciente}</td>
                         <td>${p.nombre_completo}</td>
                         <td>${p.telefono}</td>
-                        <td>${p.email}</td>
-                        <td>
+                        <td style="display: flex; flex-direction: column; gap: 5px;">
                             <button onclick="editarPaciente(${p.id_paciente}, '${p.nombre_completo}', '${p.telefono}', '${p.email}')">Modificar</button>
                             <button class="btn-eliminar" onclick="eliminarPaciente(${p.id_paciente})">Eliminar</button>
                         </td>
                     </tr>
                 `;
+            // Agregar al desplegable de agendar citas
+            selectPaciente.innerHTML += `<option value="${p.id_paciente}">${p.nombre_completo}</option>`;
         });
     }
 
-    // 2. AGREGAR O MODIFICAR
-    form.addEventListener('submit', async (e) => {
+    document.getElementById('pacienteForm').addEventListener('submit', async (e) => {
         e.preventDefault();
         const id = document.getElementById('id_paciente').value;
-        const datos = {
-            nombre_completo: document.getElementById('nombre').value,
-            telefono: document.getElementById('telefono').value,
-            email: document.getElementById('email').value
-        };
+        const datos = { nombre_completo: document.getElementById('nombre').value, telefono: document.getElementById('telefono').value, email: document.getElementById('email').value };
 
-        if (id) {
-            // MODIFICAR (PUT)
-            await fetch(`/api/pacientes/${id}`, {
-                method: 'PUT',
-                headers: { 'Content-Type': 'application/json' },
-                body: JSON.stringify(datos)
-            });
-        } else {
-            // AGREGAR (POST)
-            await fetch('/api/pacientes', {
-                method: 'POST',
-                headers: { 'Content-Type': 'application/json' },
-                body: JSON.stringify(datos)
-            });
-        }
-        form.reset();
-        document.getElementById('id_paciente').value = '';
-        cargarPacientes(); // Recargar la tabla
+        if (id) await fetch(`/api/pacientes/${id}`, { method: 'PUT', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify(datos) });
+        else await fetch('/api/pacientes', { method: 'POST', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify(datos) });
+
+        document.getElementById('pacienteForm').reset(); document.getElementById('id_paciente').value = '';
+        cargarPacientes();
     });
 
-    // 3. Preparar el formulario para modificar
     function editarPaciente(id, nombre, telefono, email) {
-        document.getElementById('id_paciente').value = id;
-        document.getElementById('nombre').value = nombre;
-        document.getElementById('telefono').value = telefono;
-        document.getElementById('email').value = email;
+        document.getElementById('id_paciente').value = id; document.getElementById('nombre').value = nombre; document.getElementById('telefono').value = telefono; document.getElementById('email').value = email;
     }
 
-    // 4. ELIMINAR
     async function eliminarPaciente(id) {
-        if(confirm('¿Estás seguro de eliminar este paciente?')) {
-            await fetch(`/api/pacientes/${id}`, { method: 'DELETE' });
-            cargarPacientes(); // Recargar la tabla
-        }
+        if(confirm('¿Seguro que deseas eliminar este paciente?')) { await fetch(`/api/pacientes/${id}`, { method: 'DELETE' }); cargarPacientes(); }
     }
 
-    // Cargar los pacientes apenas abra la página
-    cargarPacientes();
+    // ==========================================
+    // LÓGICA DE CITAS (AGENDAR)
+    // ==========================================
+    document.getElementById('citaForm').addEventListener('submit', async (e) => {
+        e.preventDefault();
+        const datosCita = {
+            id_paciente: document.getElementById('citaPaciente').value,
+            fecha: document.getElementById('citaFecha').value,
+            hora: document.getElementById('citaHora').value,
+            motivo: document.getElementById('citaMotivo').value
+        };
+
+        // Mandar guardar a la base de datos
+        await fetch('/api/citas', {
+            method: 'POST',
+            headers: { 'Content-Type': 'application/json' },
+            body: JSON.stringify(datosCita)
+        });
+
+        document.getElementById('citaForm').reset();
+
+        // Recargar el calendario para que aparezca la nueva cita al instante
+        calendarioGlobal.refetchEvents();
+        alert('¡Cita agendada correctamente!');
+    });
 </script>
 </body>
 </html>
