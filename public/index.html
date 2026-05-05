@@ -1,0 +1,127 @@
+<!DOCTYPE html>
+<html lang="es">
+<head>
+    <meta charset="UTF-8">
+    <title>Consultorio Dental - IngSoft</title>
+    <style>
+        body { font-family: Arial, sans-serif; background-color: #f4f7f6; padding: 20px; }
+        .container { max-width: 800px; margin: auto; background: white; padding: 20px; border-radius: 8px; box-shadow: 0 0 10px rgba(0,0,0,0.1); }
+        h1 { color: #2c3e50; text-align: center; }
+        form { display: flex; gap: 10px; margin-bottom: 20px; flex-wrap: wrap; }
+        input { flex: 1; padding: 10px; border: 1px solid #ccc; border-radius: 4px; min-width: 150px; }
+        button { padding: 10px 15px; border: none; background: #3498db; color: white; border-radius: 4px; cursor: pointer; }
+        button:hover { background: #2980b9; }
+        button.btn-eliminar { background: #e74c3c; }
+        table { width: 100%; border-collapse: collapse; margin-top: 20px; }
+        th, td { border: 1px solid #ddd; padding: 10px; text-align: left; }
+        th { background-color: #3498db; color: white; }
+    </style>
+</head>
+<body>
+<div class="container">
+    <h1>🦷 Control de Pacientes</h1>
+
+    <!-- Formulario para Agregar / Modificar -->
+    <form id="pacienteForm">
+        <input type="hidden" id="id_paciente">
+        <input type="text" id="nombre" placeholder="Nombre Completo" required>
+        <input type="text" id="telefono" placeholder="Teléfono" required>
+        <input type="email" id="email" placeholder="Correo Electrónico">
+        <button type="submit" id="btnGuardar">Guardar Paciente</button>
+    </form>
+
+    <!-- Tabla donde se muestran los datos de la Base de Datos -->
+    <table>
+        <thead>
+        <tr>
+            <th>ID</th>
+            <th>Nombre</th>
+            <th>Teléfono</th>
+            <th>Email</th>
+            <th>Acciones</th>
+        </tr>
+        </thead>
+        <tbody id="tablaPacientes">
+        <!-- Aquí se inyectarán los datos desde JavaScript -->
+        </tbody>
+    </table>
+</div>
+
+<script>
+    // Funciones para conectar la Interfaz con el Servidor y la Base de Datos
+    const form = document.getElementById('pacienteForm');
+
+    // 1. LEER (Mostrar datos)
+    async function cargarPacientes() {
+        const respuesta = await fetch('/api/pacientes');
+        const pacientes = await respuesta.json();
+        const tabla = document.getElementById('tablaPacientes');
+        tabla.innerHTML = '';
+
+        pacientes.forEach(p => {
+            tabla.innerHTML += `
+                    <tr>
+                        <td>${p.id_paciente}</td>
+                        <td>${p.nombre_completo}</td>
+                        <td>${p.telefono}</td>
+                        <td>${p.email}</td>
+                        <td>
+                            <button onclick="editarPaciente(${p.id_paciente}, '${p.nombre_completo}', '${p.telefono}', '${p.email}')">Modificar</button>
+                            <button class="btn-eliminar" onclick="eliminarPaciente(${p.id_paciente})">Eliminar</button>
+                        </td>
+                    </tr>
+                `;
+        });
+    }
+
+    // 2. AGREGAR O MODIFICAR
+    form.addEventListener('submit', async (e) => {
+        e.preventDefault();
+        const id = document.getElementById('id_paciente').value;
+        const datos = {
+            nombre_completo: document.getElementById('nombre').value,
+            telefono: document.getElementById('telefono').value,
+            email: document.getElementById('email').value
+        };
+
+        if (id) {
+            // MODIFICAR (PUT)
+            await fetch(`/api/pacientes/${id}`, {
+                method: 'PUT',
+                headers: { 'Content-Type': 'application/json' },
+                body: JSON.stringify(datos)
+            });
+        } else {
+            // AGREGAR (POST)
+            await fetch('/api/pacientes', {
+                method: 'POST',
+                headers: { 'Content-Type': 'application/json' },
+                body: JSON.stringify(datos)
+            });
+        }
+        form.reset();
+        document.getElementById('id_paciente').value = '';
+        cargarPacientes(); // Recargar la tabla
+    });
+
+    // 3. Preparar el formulario para modificar
+    function editarPaciente(id, nombre, telefono, email) {
+        document.getElementById('id_paciente').value = id;
+        document.getElementById('nombre').value = nombre;
+        document.getElementById('telefono').value = telefono;
+        document.getElementById('email').value = email;
+    }
+
+    // 4. ELIMINAR
+    async function eliminarPaciente(id) {
+        if(confirm('¿Estás seguro de eliminar este paciente?')) {
+            await fetch(`/api/pacientes/${id}`, { method: 'DELETE' });
+            cargarPacientes(); // Recargar la tabla
+        }
+    }
+
+    // Cargar los pacientes apenas abra la página
+    cargarPacientes();
+</script>
+</body>
+</html>
