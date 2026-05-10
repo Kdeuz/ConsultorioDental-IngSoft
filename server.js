@@ -35,14 +35,13 @@ let googleCalendarAutenticado = false;
 
 const transporter = nodemailer.createTransport({
     host: "smtp.gmail.com",
-    port: 465,
-    secure: true, // true para puerto 465
+    port: 587,
+    secure: false, // false para 587
     auth: {
         user: process.env.EMAIL_USER,
         pass: process.env.EMAIL_PASS
     },
     tls: {
-        // Esto ayuda a que la conexión no se caiga desde servidores de nube
         rejectUnauthorized: false
     }
 });
