@@ -93,67 +93,82 @@ app.get('/api/pacientes', async (req, res) => {
 app.post('/api/citas', async (req, res) => {
     const { id_paciente, fecha_hora, tipo_servicio, motivo } = req.body;
 
-    // 1. Definir el catálogo y la duración PRIMERO
+    // 1. Definir catálogo y duración
     const catalogo = { 'Consulta General': 30, 'Limpieza': 45, 'Extracción': 60, 'Ortodoncia': 30, 'Urgencias': 30 };
-    const duracion = catalogo[tipo_servicio] || 30; // <--- AQUÍ SE DEFINE
+    const duracion = catalogo[tipo_servicio] || 30;
 
-    // 2. Validar el horario
+    // 2. Validar horario
     const validacion = esHorarioValido(fecha_hora, duracion);
     if (!validacion.valido) return res.status(400).json({ error: validacion.msg });
 
     try {
+        // 3. Obtener datos del paciente
         const [pacientes] = await db.query('SELECT * FROM pacientes WHERE id_paciente = ?', [id_paciente]);
         const paciente = pacientes[0];
 
         if (!paciente) return res.status(404).json({ error: "Paciente no encontrado" });
 
+        // Separar fecha y hora para la DB
         const [fechaStr, horaStr] = fecha_hora.split('T');
         let googleEventId = null;
 
-        // 3. Lógica de Google Calendar
+        // 4. Lógica de Google Calendar (CORREGIDA PARA GMT-6)
         if (googleCalendarAutenticado) {
-            const calendar = google.calendar({ version: 'v3', auth: oauth2Client });
-            const fechaInicio = new Date(fecha_hora);
-            const fechaFin = new Date(fechaInicio.getTime() + duracion * 60000);
             try {
+                const calendar = google.calendar({ version: 'v3', auth: oauth2Client });
+
+                // IMPORTANTE: Ajuste de desfase horario para México
+                const inicio = new Date(fecha_hora);
+                const fin = new Date(inicio.getTime() + duracion * 60000);
+
                 const evento = await calendar.events.insert({
                     calendarId: 'primary',
                     resource: {
                         summary: `${tipo_servicio} - ${paciente.nombre_completo}`,
                         description: `Motivo: ${motivo}\nTeléfono: ${paciente.telefono}`,
-                        start: { dateTime: fechaInicio.toISOString(), timeZone: 'America/Mexico_City' },
-                        end: { dateTime: fechaFin.toISOString(), timeZone: 'America/Mexico_City' },
+                        start: {
+                            dateTime: inicio.toISOString().replace(/\.\d+Z$/, ''), // Limpia el formato para Google
+                            timeZone: 'America/Mexico_City'
+                        },
+                        end: {
+                            dateTime: fin.toISOString().replace(/\.\d+Z$/, ''),
+                            timeZone: 'America/Mexico_City'
+                        },
                     }
                 });
                 googleEventId = evento.data.id;
-            } catch (calErr) { console.error("Error G-Calendar:", calErr.message); }
+                console.log("✅ Evento creado en Google Calendar");
+            } catch (calErr) {
+                console.error("❌ Error G-Calendar:", calErr.message);
+                // No detenemos el proceso si falla el calendario
+            }
         }
 
-        // 4. Guardar en Base de Datos
-        await db.query('INSERT INTO citas (id_paciente, fecha, hora, tipo_servicio, duracion_min, motivo, google_event_id) VALUES (?, ?, ?, ?, ?, ?, ?)',
-            [id_paciente, fechaStr, horaStr, tipo_servicio, duracion, motivo || '', googleEventId]);
+        // 5. Guardar en Base de Datos (Esto es lo que dices que no se guarda)
+        await db.query(
+            'INSERT INTO citas (id_paciente, fecha, hora, tipo_servicio, duracion_min, motivo, google_event_id) VALUES (?, ?, ?, ?, ?, ?, ?)',
+            [id_paciente, fechaStr, horaStr, tipo_servicio, duracion, motivo || '', googleEventId]
+        );
+        console.log("✅ Cita guardada en la base de datos");
 
-        // 5. Envío de Mail (Con el debug para los Logs de Render)
-        if (paciente.email) {
-            console.log(`📧 Intentando enviar mail a: ${paciente.email}`);
+        // 6. Envío de Mail (Con manejo de errores para que no trabe el servidor)
+        if (paciente.email && process.env.EMAIL_USER && process.env.EMAIL_PASS) {
             transporter.sendMail({
                 from: process.env.EMAIL_USER,
                 to: paciente.email,
                 subject: '🦷 Confirmación de Cita - Consultorio Dental',
                 text: `Hola ${paciente.nombre_completo}, tu cita para ${tipo_servicio} está confirmada el ${fechaStr} a las ${horaStr}.`
             }, (err, info) => {
-                if (err) {
-                    console.error("❌ ERROR NODEMAILER EN RENDER:", err.message);
-                } else {
-                    console.log("✅ CORREO ENVIADO EXITOSAMENTE:", info.response);
-                }
+                if (err) console.error("❌ Error enviando mail:", err.message);
+                else console.log("✅ Mail enviado:", info.response);
             });
         }
 
         res.json({ mensaje: 'Cita agendada exitosamente.' });
+
     } catch (err) {
-        console.error("❌ Error General en Cita:", err.message);
-        res.status(500).json({ error: err.message });
+        console.error("❌ Error Crítico en el proceso:", err);
+        res.status(500).json({ error: "Error interno al procesar la cita." });
     }
 });
 
