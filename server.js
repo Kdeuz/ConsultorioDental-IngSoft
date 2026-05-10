@@ -208,4 +208,8 @@ app.delete('/api/citas/:id', async (req, res) => {
     } catch (err) { res.status(500).json({ error: err.message }); }
 });
 
-app.listen(4000, () => console.log('🚀 Servidor Enterprise Activo'));
+const PORT = process.env.PORT || 3000;
+
+app.listen(PORT, '0.0.0.0', () => {
+    console.log(`🚀 Servidor Enterprise escuchando en el puerto ${PORT}`);
+});
