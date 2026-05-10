@@ -34,8 +34,17 @@ const oauth2Client = new google.auth.OAuth2(CLIENT_ID, CLIENT_SECRET, REDIRECT_U
 let googleCalendarAutenticado = false;
 
 const transporter = nodemailer.createTransport({
-    service: 'gmail',
-    auth: { user: process.env.EMAIL_USER, pass: process.env.EMAIL_PASS }
+    host: "smtp.gmail.com",
+    port: 465,
+    secure: true, // true para puerto 465
+    auth: {
+        user: process.env.EMAIL_USER,
+        pass: process.env.EMAIL_PASS
+    },
+    tls: {
+        // Esto ayuda a que la conexión no se caiga desde servidores de nube
+        rejectUnauthorized: false
+    }
 });
 
 // --- RUTAS DE GOOGLE OAUTH ---
@@ -82,13 +91,48 @@ app.get('/api/pacientes', async (req, res) => {
     } catch (err) { res.status(500).json({ error: err.message }); }
 });
 
-app.post('/api/pacientes', async (req, res) => {
-    const { nombre_completo, telefono, email, edad, alergias_antecedentes } = req.body;
+app.post('/api/citas', async (req, res) => {
+    const { id_paciente, fecha_hora, tipo_servicio, motivo } = req.body;
+    // ... (aquí va tu lógica de catálogo y validación que ya tienes) ...
+
     try {
-        await db.query('INSERT INTO pacientes (nombre_completo, telefono, email, edad, alergias_antecedentes) VALUES (?, ?, ?, ?, ?)',
-            [nombre_completo, telefono, email, edad || null, alergias_antecedentes || '']);
-        res.json({ mensaje: 'Paciente registrado.' });
-    } catch (err) { res.status(500).json({ error: err.message }); }
+        const [pacientes] = await db.query('SELECT * FROM pacientes WHERE id_paciente = ?', [id_paciente]);
+        const paciente = pacientes[0];
+        const [fechaStr, horaStr] = fecha_hora.split('T');
+        let googleEventId = null;
+
+        // ... (aquí va tu lógica de Google Calendar que ya tienes) ...
+
+        await db.query('INSERT INTO citas (id_paciente, fecha, hora, tipo_servicio, duracion_min, motivo, google_event_id) VALUES (?, ?, ?, ?, ?, ?, ?)',
+            [id_paciente, fechaStr, horaStr, tipo_servicio, duracion, motivo || '', googleEventId]);
+
+        // --- ESTA ES LA PARTE QUE DEBES MODIFICAR PARA DEBUGUEAR ---
+        if (paciente && paciente.email) {
+            console.log(`📧 Intentando enviar mail a: ${paciente.email}`);
+
+            transporter.sendMail({
+                from: process.env.EMAIL_USER,
+                to: paciente.email,
+                subject: '🦷 Confirmación de Cita - Consultorio Dental',
+                text: `Hola ${paciente.nombre_completo}, tu cita para ${tipo_servicio} está confirmada el ${fechaStr} a las ${horaStr}.`
+            }, (err, info) => {
+                if (err) {
+                    // Si falla, esto aparecerá en los logs negros de Render
+                    console.error("❌ ERROR NODEMAILER:", err.message);
+                } else {
+                    // Si funciona, verás esto
+                    console.log("✅ CORREO ENVIADO:", info.response);
+                }
+            });
+        } else {
+            console.log("⚠️ No se envió correo: El paciente no tiene email registrado.");
+        }
+
+        res.json({ mensaje: 'Cita agendada exitosamente.' });
+    } catch (err) {
+        console.error("❌ Error en el proceso de cita:", err.message);
+        res.status(500).json({ error: err.message });
+    }
 });
 
 app.put('/api/pacientes/:id', async (req, res) => {
