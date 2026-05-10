@@ -2,185 +2,273 @@
 <html lang="es">
 <head>
     <meta charset="UTF-8">
-    <title>Consultorio Dental - IngSoft</title>
-    <!-- Librería profesional para el Calendario -->
+    <title>Consultorio Dental - Enterprise</title>
     <script src='https://cdn.jsdelivr.net/npm/fullcalendar@6.1.11/index.global.min.js'></script>
     <style>
-        body { font-family: Arial, sans-serif; background-color: #f4f7f6; padding: 20px; margin: 0; }
-        .layout-principal { display: flex; gap: 20px; max-width: 1400px; margin: auto; }
-        .columna-izquierda { flex: 1; background: white; padding: 20px; border-radius: 8px; box-shadow: 0 0 10px rgba(0,0,0,0.1); }
-        .columna-derecha { flex: 1.5; background: white; padding: 20px; border-radius: 8px; box-shadow: 0 0 10px rgba(0,0,0,0.1); }
+        :root { --primary: #1e3a8a; --accent: #2563eb; --success: #16a34a; --bg: #f8fafc; }
+        body { font-family: system-ui, -apple-system, sans-serif; background: var(--bg); margin: 0; display: flex; flex-direction: column; height: 100vh; }
+        header { background: var(--primary); color: white; padding: 15px; text-align: center; font-size: 1.2rem; display: flex; justify-content: space-between; align-items: center; }
+        .main-container { display: grid; grid-template-columns: 350px 1fr; gap: 20px; padding: 20px; flex: 1; overflow: hidden; }
+        .panel { background: white; padding: 20px; border-radius: 8px; box-shadow: 0 4px 6px -1px rgba(0,0,0,0.1); overflow-y: auto; }
+        .form-group { margin-bottom: 15px; }
+        label { display: block; font-size: 0.85rem; color: #475569; margin-bottom: 4px; font-weight: 600; }
+        input, select, textarea { width: 100%; padding: 10px; border: 1px solid #cbd5e1; border-radius: 6px; box-sizing: border-box; }
+        button { width: 100%; padding: 12px; background: var(--accent); color: white; border: none; border-radius: 6px; cursor: pointer; font-weight: bold; }
+        button:hover { opacity: 0.9; }
+        .btn-danger { background: #dc2626; margin-top: 5px; padding: 8px; }
+        .btn-cancelar { background: #64748b; margin-top: 5px;}
 
-        h1, h2, h3 { color: #2c3e50; text-align: center; }
-        form { display: flex; gap: 10px; margin-bottom: 20px; flex-wrap: wrap; background: #ecf0f1; padding: 15px; border-radius: 6px; }
-        input, select { flex: 1; padding: 10px; border: 1px solid #ccc; border-radius: 4px; min-width: 120px; }
-        button { padding: 10px 15px; border: none; background: #3498db; color: white; border-radius: 4px; cursor: pointer; font-weight: bold;}
-        button:hover { background: #2980b9; }
-        button.btn-eliminar { background: #e74c3c; margin-top: 5px; }
+        .google-btn { background: white; color: #444; border: 1px solid #ccc; font-weight: bold; padding: 10px; display: flex; justify-content: center; align-items: center; gap: 10px; text-decoration: none; border-radius: 6px; margin-bottom: 20px; cursor: pointer;}
+        .google-btn:hover { background: #f1f1f1; }
+        .google-btn img { width: 20px; }
+        .badge-conectado { background: var(--success); color: white; padding: 10px; border-radius: 6px; text-align: center; font-weight: bold; margin-bottom: 20px; }
 
-        table { width: 100%; border-collapse: collapse; margin-top: 20px; font-size: 14px; }
-        th, td { border: 1px solid #ddd; padding: 8px; text-align: left; }
-        th { background-color: #3498db; color: white; }
-
-        #calendario-nativo { margin-top: 20px; height: 500px; }
+        table { width: 100%; border-collapse: collapse; margin-top: 15px; font-size: 0.9rem; }
+        th, td { border-bottom: 1px solid #e2e8f0; padding: 10px 5px; text-align: left; }
     </style>
 </head>
 <body>
-<h1 style="text-align: center; color: #2c3e50; margin-bottom: 30px;">🦷 Sistema de Gestión Dental</h1>
 
-<div class="layout-principal">
+<header>
+    <span></span>
+    <b>🦷 Sistema de Gestión Dental Inteligente</b>
+    <span style="font-size: 0.9rem;">Panel de Administración</span>
+</header>
 
-    <!-- MITAD IZQUIERDA: Pacientes -->
-    <div class="columna-izquierda">
-        <h2>1. Control de Pacientes</h2>
-        <form id="pacienteForm">
+<div class="main-container">
+    <div class="panel">
+
+        <div id="panelGoogle">
+            <a href="/auth/google" class="google-btn" id="btnGoogleLogin">
+                <img src="https://upload.wikimedia.org/wikipedia/commons/c/c1/Google_%22G%22_logo.svg" alt="Google"> Conectar mi Google Calendar
+            </a>
+        </div>
+
+        <h3 style="margin-top: 0; color: var(--primary); border-top: 2px solid #eee; padding-top: 15px;">1. Expediente Clínico</h3>
+        <form id="formPaciente">
             <input type="hidden" id="id_paciente">
-            <input type="text" id="nombre" placeholder="Nombre" required>
-            <input type="text" id="telefono" placeholder="Teléfono" required>
-            <input type="email" id="email" placeholder="Correo">
-            <button type="submit">Guardar Paciente</button>
+            <div class="form-group"><label>Nombre Completo *</label><input type="text" id="pNombre" required></div>
+            <div class="form-group"><label>Teléfono *</label><input type="text" id="pTel" required></div>
+            <div class="form-group"><label>Correo (Opcional)</label><input type="email" id="pEmail"></div>
+            <div class="form-group"><label>Edad</label><input type="number" id="pEdad"></div>
+            <div class="form-group"><label>Alergias / Antecedentes</label><textarea id="pAlergias" rows="2"></textarea></div>
+            <button type="submit" id="btnPaciente">Guardar Paciente</button>
+            <button type="button" class="btn-cancelar" id="btnCancelarPaciente" style="display:none;" onclick="cancelarEdicionPaciente()">Cancelar Edición</button>
         </form>
 
-        <table>
-            <thead>
-            <tr><th>ID</th><th>Nombre</th><th>Teléfono</th><th>Acciones</th></tr>
-            </thead>
-            <tbody id="tablaPacientes"></tbody>
-        </table>
-    </div>
+        <table id="tablaPacientes"></table>
 
-    <!-- MITAD DERECHA: Citas y Calendario -->
-    <div class="columna-derecha">
-        <h2>2. Agenda de Citas</h2>
+        <hr style="margin: 20px 0; border: 1px solid #e2e8f0;">
 
-        <!-- FORMULARIO PARA AGENDAR CITAS -->
-        <form id="citaForm">
-            <select id="citaPaciente" required>
-                <option value="">Selecciona un paciente...</option>
-            </select>
-            <input type="date" id="citaFecha" required>
-            <input type="time" id="citaHora" required>
-            <input type="text" id="citaMotivo" placeholder="Motivo (Ej: Limpieza)" required>
-            <button type="submit" style="background-color: #27ae60;">Agendar Cita</button>
+        <h3 style="color: var(--primary);">2. Gestión de Citas</h3>
+        <form id="formCita">
+            <input type="hidden" id="id_cita">
+            <div class="form-group">
+                <label>Paciente *</label>
+                <select id="citaPaciente" required><option value="">Cargando...</option></select>
+            </div>
+            <div class="form-group">
+                <label>Servicio *</label>
+                <select id="citaServicio" required>
+                    <option value="Consulta General">Consulta General (30 min)</option>
+                    <option value="Limpieza">Limpieza (45 min)</option>
+                    <option value="Extracción">Extracción (60 min)</option>
+                    <option value="Ortodoncia">Ortodoncia (30 min)</option>
+                    <option value="Urgencias">Urgencias (30 min)</option>
+                </select>
+            </div>
+            <div class="form-group"><label>Fecha y Hora *</label><input type="datetime-local" id="citaFecha" required></div>
+            <div class="form-group"><label>Motivo</label><input type="text" id="citaMotivo"></div>
+
+            <button type="submit" id="btnCita" style="background: var(--success);">Agendar Cita</button>
+            <button type="button" class="btn-danger" id="btnBorrarCita" style="display:none;" onclick="borrarCitaActual()">🗑️ Cancelar Cita Definitivamente</button>
+            <button type="button" class="btn-cancelar" id="btnCancelarCita" style="display:none;" onclick="limpiarFormularioCita()">Descartar Cambios</button>
         </form>
-
-        <!-- CONTENEDOR DEL CALENDARIO -->
-        <div id="calendario-nativo"></div>
     </div>
 
+    <div class="panel" style="padding: 10px;">
+        <div id='calendar' style="height: 100%;"></div>
+    </div>
 </div>
 
 <script>
-    let calendarioGlobal;
+    let calendar;
 
-    // ==========================================
-    // CONFIGURAR EL CALENDARIO (Se ejecuta al abrir la página)
-    // ==========================================
-    document.addEventListener('DOMContentLoaded', function() {
-        const calendarEl = document.getElementById('calendario-nativo');
-        calendarioGlobal = new FullCalendar.Calendar(calendarEl, {
-            initialView: 'dayGridMonth',
-            locale: 'es', // En español
-            headerToolbar: { left: 'prev,next today', center: 'title', right: 'dayGridMonth,timeGridWeek,timeGridDay' },
-            // Esta función saca las citas de tu Base de Datos y las dibuja
+    document.addEventListener('DOMContentLoaded', async function() {
+        const resGoogle = await fetch('/api/estado-google');
+        const estadoGoogle = await resGoogle.json();
+
+        if(estadoGoogle.conectado || window.location.search.includes('conectado=true')) {
+            document.getElementById('panelGoogle').innerHTML = '<div class="badge-conectado">✅ Sincronizado con Google Calendar</div>';
+        }
+
+        var calendarEl = document.getElementById('calendar');
+        calendar = new FullCalendar.Calendar(calendarEl, {
+            initialView: 'timeGridWeek', slotMinTime: '09:00:00', slotMaxTime: '20:00:00', locale: 'es', hiddenDays: [0],
+            eventClick: function(info) {
+                // Al hacer clic, enviamos los datos al formulario para poder editarlos o borrarlos
+                cargarCitaEnFormulario(info.event);
+            },
             events: async function(info, successCallback, failureCallback) {
-                const respuesta = await fetch('/api/citas');
-                const citas = await respuesta.json();
+                const res = await fetch('/api/citas');
+                const citas = await res.json();
+                if (citas.error) return failureCallback(citas.error);
 
-                // Transformamos los datos para que el calendario los entienda
-                const eventos = citas.map(cita => ({
-                    id: cita.id_cita,
-                    title: `${cita.nombre_completo} - ${cita.motivo}`,
-                    start: `${cita.fecha}T${cita.hora}`, // Une fecha y hora
-                    color: '#3498db'
-                }));
+                const eventos = citas.map(cita => {
+                    const dt = `${cita.fecha_f}T${cita.hora}`;
+                    return {
+                        id: cita.id_cita,
+                        title: `${cita.nombre_completo} - ${cita.tipo_servicio}`,
+                        start: dt,
+                        end: new Date(new Date(dt).getTime() + (cita.duracion_min * 60000)),
+                        color: cita.tipo_servicio === 'Urgencias' ? '#dc2626' : 'var(--accent)',
+                        // Guardamos datos extra para cuando hagamos clic
+                        extendedProps: { id_paciente: cita.id_paciente, tipo_servicio: cita.tipo_servicio, motivo: cita.motivo }
+                    };
+                });
                 successCallback(eventos);
             }
         });
-        calendarioGlobal.render();
-
-        // Cargar datos iniciales
+        calendar.render();
         cargarPacientes();
     });
 
     // ==========================================
-    // LÓGICA DE PACIENTES
+    // LÓGICA PACIENTES
     // ==========================================
     async function cargarPacientes() {
-        const respuesta = await fetch('/api/pacientes');
-        const pacientes = await respuesta.json();
+        const res = await fetch('/api/pacientes');
+        const pacientes = await res.json();
 
-        // 1. Llenar la tabla
         const tabla = document.getElementById('tablaPacientes');
-        tabla.innerHTML = '';
+        const select = document.getElementById('citaPaciente');
+        tabla.innerHTML = ''; select.innerHTML = '<option value="">Seleccionar Paciente...</option>';
 
-        // 2. Llenar la lista desplegable de citas
-        const selectPaciente = document.getElementById('citaPaciente');
-        selectPaciente.innerHTML = '<option value="">Selecciona un paciente...</option>';
+        if(pacientes.error) return alert("Error DB: " + pacientes.error);
 
         pacientes.forEach(p => {
-            // Agregar a la tabla
+            select.innerHTML += `<option value="${p.id_paciente}">${p.nombre_completo}</option>`;
             tabla.innerHTML += `
-                    <tr>
-                        <td>${p.id_paciente}</td>
-                        <td>${p.nombre_completo}</td>
-                        <td>${p.telefono}</td>
-                        <td style="display: flex; flex-direction: column; gap: 5px;">
-                            <button onclick="editarPaciente(${p.id_paciente}, '${p.nombre_completo}', '${p.telefono}', '${p.email}')">Modificar</button>
-                            <button class="btn-eliminar" onclick="eliminarPaciente(${p.id_paciente})">Eliminar</button>
-                        </td>
-                    </tr>
-                `;
-            // Agregar al desplegable de agendar citas
-            selectPaciente.innerHTML += `<option value="${p.id_paciente}">${p.nombre_completo}</option>`;
+                <tr>
+                    <td><b>${p.nombre_completo}</b><br><span style="color:gray;font-size:12px;">${p.telefono}</span></td>
+                    <td style="text-align: right;">
+                        <button style="padding: 6px; font-size: 11px;" onclick="cargarPacienteEnFormulario(${p.id_paciente}, '${p.nombre_completo}', '${p.telefono}', '${p.email || ''}', '${p.edad || ''}', '${p.alergias_antecedentes || ''}')">✏️ Editar</button>
+                        <button class="btn-danger" style="padding: 6px; font-size: 11px;" onclick="eliminarPaciente(${p.id_paciente})">🗑️</button>
+                    </td>
+                </tr>
+            `;
         });
     }
 
-    document.getElementById('pacienteForm').addEventListener('submit', async (e) => {
+    document.getElementById('formPaciente').onsubmit = async (e) => {
         e.preventDefault();
         const id = document.getElementById('id_paciente').value;
-        const datos = { nombre_completo: document.getElementById('nombre').value, telefono: document.getElementById('telefono').value, email: document.getElementById('email').value };
+        const body = {
+            nombre_completo: document.getElementById('pNombre').value,
+            telefono: document.getElementById('pTel').value,
+            email: document.getElementById('pEmail').value,
+            edad: document.getElementById('pEdad').value,
+            alergias_antecedentes: document.getElementById('pAlergias').value
+        };
 
-        if (id) await fetch(`/api/pacientes/${id}`, { method: 'PUT', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify(datos) });
-        else await fetch('/api/pacientes', { method: 'POST', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify(datos) });
+        const url = id ? `/api/pacientes/${id}` : '/api/pacientes';
+        const method = id ? 'PUT' : 'POST';
 
-        document.getElementById('pacienteForm').reset(); document.getElementById('id_paciente').value = '';
-        cargarPacientes();
-    });
+        const res = await fetch(url, { method, headers: {'Content-Type': 'application/json'}, body: JSON.stringify(body) });
+        const data = await res.json();
+        if (!res.ok) alert("Error: " + data.error);
+        else { cancelarEdicionPaciente(); cargarPacientes(); }
+    };
 
-    function editarPaciente(id, nombre, telefono, email) {
-        document.getElementById('id_paciente').value = id; document.getElementById('nombre').value = nombre; document.getElementById('telefono').value = telefono; document.getElementById('email').value = email;
+    function cargarPacienteEnFormulario(id, nombre, tel, email, edad, alergias) {
+        document.getElementById('id_paciente').value = id;
+        document.getElementById('pNombre').value = nombre;
+        document.getElementById('pTel').value = tel;
+        document.getElementById('pEmail').value = email;
+        document.getElementById('pEdad').value = edad;
+        document.getElementById('pAlergias').value = alergias;
+        document.getElementById('btnPaciente').innerText = "Guardar Cambios del Paciente";
+        document.getElementById('btnCancelarPaciente').style.display = "block";
+    }
+
+    function cancelarEdicionPaciente() {
+        document.getElementById('formPaciente').reset();
+        document.getElementById('id_paciente').value = '';
+        document.getElementById('btnPaciente').innerText = "Guardar Paciente";
+        document.getElementById('btnCancelarPaciente').style.display = "none";
     }
 
     async function eliminarPaciente(id) {
-        if(confirm('¿Seguro que deseas eliminar este paciente?')) { await fetch(`/api/pacientes/${id}`, { method: 'DELETE' }); cargarPacientes(); }
+        if(confirm('¿Seguro que deseas eliminar el paciente y TODAS sus citas?')) {
+            await fetch(`/api/pacientes/${id}`, { method: 'DELETE' });
+            cargarPacientes(); calendar.refetchEvents();
+        }
     }
 
     // ==========================================
-    // LÓGICA DE CITAS (AGENDAR)
+    // LÓGICA CITAS
     // ==========================================
-    document.getElementById('citaForm').addEventListener('submit', async (e) => {
+    function cargarCitaEnFormulario(event) {
+        document.getElementById('id_cita').value = event.id;
+        document.getElementById('citaPaciente').value = event.extendedProps.id_paciente;
+        document.getElementById('citaServicio').value = event.extendedProps.tipo_servicio;
+        document.getElementById('citaMotivo').value = event.extendedProps.motivo || '';
+
+        // Ajustamos la zona horaria para que el input datetime-local la lea bien
+        const tzOffset = (new Date()).getTimezoneOffset() * 60000;
+        const localISOTime = (new Date(event.start - tzOffset)).toISOString().slice(0, 16);
+        document.getElementById('citaFecha').value = localISOTime;
+
+        // Cambiamos el aspecto de los botones
+        document.getElementById('btnCita').innerText = "Guardar Modificación";
+        document.getElementById('btnCita').style.background = "var(--accent)";
+        document.getElementById('btnBorrarCita').style.display = "block";
+        document.getElementById('btnCancelarCita').style.display = "block";
+    }
+
+    function limpiarFormularioCita() {
+        document.getElementById('formCita').reset();
+        document.getElementById('id_cita').value = '';
+        document.getElementById('btnCita').innerText = "Agendar Cita";
+        document.getElementById('btnCita').style.background = "var(--success)";
+        document.getElementById('btnBorrarCita').style.display = "none";
+        document.getElementById('btnCancelarCita').style.display = "none";
+    }
+
+    document.getElementById('formCita').onsubmit = async (e) => {
         e.preventDefault();
-        const datosCita = {
+        const idCita = document.getElementById('id_cita').value;
+        const body = {
             id_paciente: document.getElementById('citaPaciente').value,
-            fecha: document.getElementById('citaFecha').value,
-            hora: document.getElementById('citaHora').value,
+            fecha_hora: document.getElementById('citaFecha').value,
+            tipo_servicio: document.getElementById('citaServicio').value,
             motivo: document.getElementById('citaMotivo').value
         };
 
-        // Mandar guardar a la base de datos
-        await fetch('/api/citas', {
-            method: 'POST',
-            headers: { 'Content-Type': 'application/json' },
-            body: JSON.stringify(datosCita)
-        });
+        const url = idCita ? `/api/citas/${idCita}` : '/api/citas';
+        const method = idCita ? 'PUT' : 'POST';
 
-        document.getElementById('citaForm').reset();
+        const res = await fetch(url, { method, headers: {'Content-Type': 'application/json'}, body: JSON.stringify(body) });
+        const data = await res.json();
 
-        // Recargar el calendario para que aparezca la nueva cita al instante
-        calendarioGlobal.refetchEvents();
-        alert('¡Cita agendada correctamente!');
-    });
+        if (!res.ok) alert("Aviso: " + data.error);
+        else {
+            alert(data.mensaje);
+            limpiarFormularioCita();
+            calendar.refetchEvents();
+        }
+    };
+
+    async function borrarCitaActual() {
+        const idCita = document.getElementById('id_cita').value;
+        if(confirm('¿Estás 100% seguro de que deseas cancelar esta cita? Desaparecerá de tu Google Calendar también.')) {
+            const res = await fetch(`/api/citas/${idCita}`, { method: 'DELETE' });
+            const data = await res.json();
+            alert(data.mensaje);
+            limpiarFormularioCita();
+            calendar.refetchEvents();
+        }
+    }
 </script>
 </body>
 </html>
