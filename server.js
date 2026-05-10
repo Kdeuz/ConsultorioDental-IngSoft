@@ -20,7 +20,12 @@ const db = mysql.createPool({
 // 2. CONFIGURACIÓN DE OAUTH2 Y MAILS
 const CLIENT_ID = process.env.GOOGLE_CLIENT_ID;
 const CLIENT_SECRET = process.env.GOOGLE_CLIENT_SECRET;
-const REDIRECT_URL = 'http://localhost:3000/auth/google/callback';
+// Usar la URL de Render en producción o localhost en tu PC
+const isProduction = process.env.RENDER_EXTERNAL_URL; // Render nos da esta variable automáticamente
+const REDIRECT_URL = isProduction
+    ? `${process.env.RENDER_EXTERNAL_URL}/auth/google/callback`
+    : 'http://localhost:3000/auth/google/callback';
+
 const oauth2Client = new google.auth.OAuth2(CLIENT_ID, CLIENT_SECRET, REDIRECT_URL);
 let googleCalendarAutenticado = false;
 
