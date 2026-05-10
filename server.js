@@ -93,23 +93,50 @@ app.get('/api/pacientes', async (req, res) => {
 
 app.post('/api/citas', async (req, res) => {
     const { id_paciente, fecha_hora, tipo_servicio, motivo } = req.body;
-    // ... (aquí va tu lógica de catálogo y validación que ya tienes) ...
+
+    // 1. Definir el catálogo y la duración PRIMERO
+    const catalogo = { 'Consulta General': 30, 'Limpieza': 45, 'Extracción': 60, 'Ortodoncia': 30, 'Urgencias': 30 };
+    const duracion = catalogo[tipo_servicio] || 30; // <--- AQUÍ SE DEFINE
+
+    // 2. Validar el horario
+    const validacion = esHorarioValido(fecha_hora, duracion);
+    if (!validacion.valido) return res.status(400).json({ error: validacion.msg });
 
     try {
         const [pacientes] = await db.query('SELECT * FROM pacientes WHERE id_paciente = ?', [id_paciente]);
         const paciente = pacientes[0];
+
+        if (!paciente) return res.status(404).json({ error: "Paciente no encontrado" });
+
         const [fechaStr, horaStr] = fecha_hora.split('T');
         let googleEventId = null;
 
-        // ... (aquí va tu lógica de Google Calendar que ya tienes) ...
+        // 3. Lógica de Google Calendar
+        if (googleCalendarAutenticado) {
+            const calendar = google.calendar({ version: 'v3', auth: oauth2Client });
+            const fechaInicio = new Date(fecha_hora);
+            const fechaFin = new Date(fechaInicio.getTime() + duracion * 60000);
+            try {
+                const evento = await calendar.events.insert({
+                    calendarId: 'primary',
+                    resource: {
+                        summary: `${tipo_servicio} - ${paciente.nombre_completo}`,
+                        description: `Motivo: ${motivo}\nTeléfono: ${paciente.telefono}`,
+                        start: { dateTime: fechaInicio.toISOString(), timeZone: 'America/Mexico_City' },
+                        end: { dateTime: fechaFin.toISOString(), timeZone: 'America/Mexico_City' },
+                    }
+                });
+                googleEventId = evento.data.id;
+            } catch (calErr) { console.error("Error G-Calendar:", calErr.message); }
+        }
 
+        // 4. Guardar en Base de Datos
         await db.query('INSERT INTO citas (id_paciente, fecha, hora, tipo_servicio, duracion_min, motivo, google_event_id) VALUES (?, ?, ?, ?, ?, ?, ?)',
             [id_paciente, fechaStr, horaStr, tipo_servicio, duracion, motivo || '', googleEventId]);
 
-        // --- ESTA ES LA PARTE QUE DEBES MODIFICAR PARA DEBUGUEAR ---
-        if (paciente && paciente.email) {
+        // 5. Envío de Mail (Con el debug para los Logs de Render)
+        if (paciente.email) {
             console.log(`📧 Intentando enviar mail a: ${paciente.email}`);
-
             transporter.sendMail({
                 from: process.env.EMAIL_USER,
                 to: paciente.email,
@@ -117,20 +144,16 @@ app.post('/api/citas', async (req, res) => {
                 text: `Hola ${paciente.nombre_completo}, tu cita para ${tipo_servicio} está confirmada el ${fechaStr} a las ${horaStr}.`
             }, (err, info) => {
                 if (err) {
-                    // Si falla, esto aparecerá en los logs negros de Render
-                    console.error("❌ ERROR NODEMAILER:", err.message);
+                    console.error("❌ ERROR NODEMAILER EN RENDER:", err.message);
                 } else {
-                    // Si funciona, verás esto
-                    console.log("✅ CORREO ENVIADO:", info.response);
+                    console.log("✅ CORREO ENVIADO EXITOSAMENTE:", info.response);
                 }
             });
-        } else {
-            console.log("⚠️ No se envió correo: El paciente no tiene email registrado.");
         }
 
         res.json({ mensaje: 'Cita agendada exitosamente.' });
     } catch (err) {
-        console.error("❌ Error en el proceso de cita:", err.message);
+        console.error("❌ Error General en Cita:", err.message);
         res.status(500).json({ error: err.message });
     }
 });
