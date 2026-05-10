@@ -208,4 +208,4 @@ app.delete('/api/citas/:id', async (req, res) => {
     } catch (err) { res.status(500).json({ error: err.message }); }
 });
 
-app.listen(3000, () => console.log('🚀 Servidor Enterprise Activo'));
+app.listen(4000, () => console.log('🚀 Servidor Enterprise Activo'));
