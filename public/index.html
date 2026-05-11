@@ -194,7 +194,8 @@
         else { cancelarEdicionPaciente(); cargarPacientes(); }
     };
 
-    function cargarPacienteEnFormulario(id, nombre, tel, email, edad, alergias) {
+    async function cargarPacienteEnFormulario(id, nombre, tel, email, edad, alergias) {
+        // 1. Carga los datos en los inputs
         document.getElementById('id_paciente').value = id;
         document.getElementById('pNombre').value = nombre;
         document.getElementById('pTel').value = tel;
@@ -203,6 +204,36 @@
         document.getElementById('pAlergias').value = alergias;
         document.getElementById('btnPaciente').innerText = "Guardar Cambios del Paciente";
         document.getElementById('btnCancelarPaciente').style.display = "block";
+
+        // 2. Llama a la API para traer el historial del paciente
+        try {
+            const res = await fetch(`/api/pacientes/${id}/historial`);
+            const historial = await res.json();
+            const body = document.getElementById('historialBody');
+            body.innerHTML = '';
+
+            if (historial.length === 0 || historial.error) {
+                body.innerHTML = '<tr><td colspan="3" style="text-align:center; color: gray;">Sin citas previas registradas</td></tr>';
+            } else {
+                historial.forEach(cita => {
+                    // Formatea la fecha para que se vea bonita (Ej: 2026-05-10)
+                    const fechaLimpia = cita.fecha ? cita.fecha.split('T')[0] : 'Sin fecha';
+                    let colorEstado = cita.estado === 'Cancelada' ? 'color: #dc2626;' : 'color: var(--success);';
+                    
+                    body.innerHTML += `
+                        <tr style="background: white;">
+                            <td>${fechaLimpia}</td>
+                            <td>${cita.tipo_servicio}</td>
+                            <td style="font-weight: bold; ${colorEstado}">${cita.estado}</td>
+                        </tr>
+                    `;
+                });
+            }
+            // Muestra la caja del historial
+            document.getElementById('seccionHistorial').style.display = "block";
+        } catch (error) {
+            console.error("Error cargando historial:", error);
+        }
     }
 
     function cancelarEdicionPaciente() {
