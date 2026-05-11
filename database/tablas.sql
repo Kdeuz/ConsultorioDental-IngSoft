@@ -42,5 +42,8 @@ CREATE TABLE usuarios (
     rol ENUM('Administrador', 'Dentista', 'Recepcionista') DEFAULT 'Recepcionista'
 );
 
+ALTER TABLE pacientes 
+ADD COLUMN antecedentes_familiares TEXT,
+ADD COLUMN estatus_paciente ENUM('Activo', 'Inactivo') DEFAULT 'Activo';
 INSERT INTO medicos (nombre_completo, especialidad) VALUES ('Dra. Ana Pajarito', 'Odontología General');
 INSERT INTO usuarios (username, password_hash, rol, nombre) VALUES ('admin', 'hash_seguro_aqui', 'Administrador'),('doctora_ana', 'hash_seguro_aqui', 'Dentista');
