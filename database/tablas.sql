@@ -34,4 +34,13 @@ CREATE TABLE citas (
                        FOREIGN KEY (id_medico) REFERENCES medicos(id_medico) ON DELETE CASCADE
 );
 
+CREATE TABLE usuarios (
+    id_usuario INT AUTO_INCREMENT PRIMARY KEY,
+    username VARCHAR(50) NOT NULL UNIQUE,
+    password_hash VARCHAR(255) NOT NULL,
+    nombre VARCHAR(100),
+    rol ENUM('Administrador', 'Dentista', 'Recepcionista') DEFAULT 'Recepcionista'
+);
+
 INSERT INTO medicos (nombre_completo, especialidad) VALUES ('Dra. Ana Pajarito', 'Odontología General');
+INSERT INTO usuarios (username, password_hash, rol, nombre) VALUES ('admin', 'hash_seguro_aqui', 'Administrador'),('doctora_ana', 'hash_seguro_aqui', 'Dentista');
