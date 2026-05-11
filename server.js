@@ -183,3 +183,72 @@ const PORT = process.env.PORT || 3000;
 app.listen(PORT, '0.0.0.0', () => {
     console.log(`🚀 Servidor Enterprise escuchando en el puerto ${PORT}`);
 });
+// A. VALIDACIÓN DE TRASLAPES (Módulo 2)
+async function verificarTraslape(fecha, hora, duracion, idMedico, idCitaExcluir = 0) {
+    const [conflictos] = await db.query(
+        `SELECT * FROM citas 
+         WHERE id_medico = ? AND fecha = ? AND id_cita != ?
+         AND (
+            (hora <= ? AND ADDTIME(hora, SEC_TO_TIME(duracion_min * 60)) > ?) OR
+            (hora < ADDTIME(?, SEC_TO_TIME(? * 60)) AND ADDTIME(hora, SEC_TO_TIME(duracion_min * 60)) >= ADDTIME(?, SEC_TO_TIME(? * 60)))
+         )`,
+        [idMedico, fecha, idCitaExcluir, hora, hora, hora, duracion, hora, duracion]
+    );
+    return conflictos.length > 0;
+}
+
+// B. RUTA PARA HISTORIAL DE CITAS (Módulo 1)
+app.get('/api/pacientes/:id/historial', async (req, res) => {
+    try {
+        const [rows] = await db.query(
+            "SELECT * FROM citas WHERE id_paciente = ? ORDER BY fecha DESC, hora DESC", 
+            [req.params.id]
+        );
+        res.json(rows);
+    } catch (err) { res.status(500).json({ error: err.message }); }
+});
+
+// C. NOTIFICACIÓN POR CANCELACIÓN (Módulo 3)
+app.delete('/api/citas/:id', async (req, res) => {
+    try {
+        // Obtener datos de la cita antes de borrarla para el mail
+        const [[cita]] = await db.query(
+            "SELECT c.*, p.email, p.nombre_completo FROM citas c JOIN pacientes p ON c.id_paciente = p.id_paciente WHERE id_cita = ?", 
+            [req.params.id]
+        );
+
+        await db.query("DELETE FROM citas WHERE id_cita = ?", [req.params.id]);
+
+        if (cita && cita.email) {
+            transporter.sendMail({
+                from: process.env.EMAIL_USER,
+                to: cita.email,
+                subject: '⚠️ Cita Cancelada',
+                text: `Hola ${cita.nombre_completo}, te confirmamos que tu cita para ${cita.tipo_servicio} ha sido cancelada.`
+            });
+        }
+        res.json({ mensaje: 'Cita cancelada y paciente notificado.' });
+    } catch (err) { res.status(500).json({ error: err.message }); }
+});
+
+// D. CRON JOB: RECORDATORIO 24 HORAS ANTES (Módulo 3)
+// Se ejecuta todos los días a las 8:00 AM
+cron.schedule('0 8 * * *', async () => {
+    console.log('--- Ejecutando recordatorios de 24 horas ---');
+    const [citasManana] = await db.query(
+        `SELECT c.*, p.email, p.nombre_completo 
+         FROM citas c JOIN pacientes p ON c.id_paciente = p.id_paciente 
+         WHERE c.fecha = CURDATE() + INTERVAL 1 DAY`
+    );
+
+    for (let cita of citasManana) {
+        if (cita.email) {
+            transporter.sendMail({
+                from: process.env.EMAIL_USER,
+                to: cita.email,
+                subject: '⏰ Recordatorio: Cita Mañana',
+                text: `Hola ${cita.nombre_completo}, te recordamos tu cita de ${cita.tipo_servicio} para mañana a las ${cita.hora}.`
+            });
+        }
+    }
+});
